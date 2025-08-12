@@ -23,24 +23,38 @@
 
   const STORAGE_KEY = 'ingles-progresso:v2';
 
-  function loadStateFromStorage(){
+  function storageAvailable(){
     try{
-      // prioridade: v2
-      let raw = localStorage.getItem(STORAGE_KEY);
-      if(raw) return JSON.parse(raw);
-      // fallback: v1 legado
-      raw = localStorage.getItem('ingles-progresso:v1');
-      if(raw) return JSON.parse(raw);
-      // fallback: migrar da sessão (se existir)
+      const k='__st_av__';
+      localStorage.setItem(k,'1');
+      localStorage.removeItem(k);
+      return true;
+    }catch{ return false; }
+  }
+  function safeParse(v){ try{ return JSON.parse(v); }catch{ return null; } }
+  function loadStateFromStorage(){
+    if(!storageAvailable()) return null;
+    // prioridade: v2
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ const s = safeParse(raw); if(s) return s; }
+    // fallback: v1 legado
+    raw = localStorage.getItem('ingles-progresso:v1');
+    if(raw){ const s = safeParse(raw); if(s) return s; }
+    // fallback: migrar da sessão
+    try{
       raw = sessionStorage.getItem('ingles-progresso:session');
-      if(raw) return JSON.parse(raw);
-      return null;
-    }catch{ return null; }
+      if(raw){ const s = safeParse(raw); if(s) return s; }
+    }catch{}
+    return null;
   }
   function writeStateToStorage(current){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-    }catch{}
+    if(!storageAvailable()) return;
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); }catch{}
+  }
+  function updateStorageWarning(){
+    const el = document.getElementById('storageWarning');
+    if(!el) return;
+    el.hidden = storageAvailable();
   }
 
   function defaultState(){
@@ -285,6 +299,7 @@
   renderAll();
   // garante que o estado inicial esteja salvo na sessão
   writeStateToStorage(state);
+  updateStorageWarning();
   // tentativa extra de persistir ao ocultar/fechar a aba
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState !== 'visible'){

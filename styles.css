@@ -39,6 +39,8 @@ body{
 
 /* === Controls === */
 .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.notice{padding:10px 12px;border-radius:8px;margin-bottom:8px;font-size:.95rem;width:100%}
+.notice.error{background:#fff3f3;color:#8a1f1f;border:1px solid #f3c1c1}
 .control-group{display:flex;flex-direction:column;gap:6px}
 .control-group label{font-weight:600;color:var(--muted)}
 .control-group input[type="date"], .control-group select{
@@ -100,7 +102,8 @@ body{
 
 /* Responsive */
 @media (max-width: 800px){
-  .schedule-table{grid-template-columns:1fr}
-  .badge{order:-1}
+  .schedule-table{grid-template-columns:auto 1fr;gap:8px;align-items:center}
+  .badge{font-size:14px;padding:8px 10px;white-space:nowrap}
+  .activity{padding:8px 10px}
   /* grade mensal já é mobile-first */
 }
