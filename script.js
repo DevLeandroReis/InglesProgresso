@@ -19,6 +19,10 @@
   const $months = qs('#months');
   const $rangeText = qs('#rangeText');
   const $btnReset = qs('#btnReset');
+  const $btnNotify = qs('#btnNotify');
+  const $btnSubscribePush = qs('#btnSubscribePush');
+  const $notifPrompt = qs('#notifPrompt');
+  const $btnNotifPrompt = qs('#btnNotifPrompt');
   // sem botões adicionais
 
   const STORAGE_KEY = 'ingles-progresso:v2';
@@ -56,12 +60,21 @@
     if(!el) return;
     el.hidden = storageAvailable();
   }
+  function notifPromptSeen(seen){
+    const KEY='ingles-progresso:notif-seen';
+    if(typeof seen==='boolean'){
+      try{ localStorage.setItem(KEY, seen?'1':'0'); }catch{}
+      return seen;
+    }
+    try{ return localStorage.getItem(KEY)==='1'; }catch{ return false; }
+  }
 
   function defaultState(){
     const todayISO = new Date().toISOString().slice(0,10);
     return {
       startDate: todayISO,
       months: 4,
+  lastOpenDay: todayISO,
       progress: {
         // por atividade: array de datas concluídas (ISO)
       }
@@ -146,7 +159,9 @@
   // Render tabela de horários
   function renderSchedule(){
     $scheduleTable.innerHTML = '';
+    const todayISO = toISODate(new Date());
     for(const item of SCHEDULE){
+      const isTodayDone = (state.progress[item.key]||[]).includes(todayISO);
       const row = document.createElement('div');
       row.className = 'row';
       row.innerHTML = `
@@ -155,10 +170,28 @@
           <span class="emoji" aria-hidden="true">${item.emoji}</span>
           <span class="name">${item.name}</span>
           <span class="duration">— ${item.duration}</span>
+          <span style="flex:1"></span>
+          <button class="btn mini mark-today ${isTodayDone?'done-today':''}" data-key="${item.key}">${isTodayDone ? 'Feito hoje' : 'Marcar hoje'}</button>
         </div>
       `;
       $scheduleTable.appendChild(row);
     }
+
+    // Bind dos botões "Marcar hoje"
+    qsa('.mark-today', $scheduleTable).forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const key = e.currentTarget.getAttribute('data-key');
+        const iso = toISODate(new Date());
+        toggleProgress(key, iso);
+        // atualiza label do botão
+        const isNowDone = state.progress[key].includes(iso);
+        e.currentTarget.textContent = isNowDone ? 'Feito hoje' : 'Marcar hoje';
+        e.currentTarget.classList.toggle('done-today', isNowDone);
+        await persist();
+        // atualiza grids e metas
+        renderActivities();
+      });
+    });
   }
 
   // Render atividades com quadradinhos
@@ -169,73 +202,38 @@
 
     $rangeText.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()} (${state.months} meses)`;
 
-    const days = eachDay(start, end);
-  const byMonth = splitByMonth(days);
+  const days = eachDay(start, end);
 
     $activities.innerHTML = '';
 
     for(const item of SCHEDULE){
-      const block = document.createElement('div');
+      const block = document.createElement('details');
       block.className = 'activity-block';
       const doneCount = (state.progress[item.key]||[]).length;
       block.innerHTML = `
-        <div class="header">
+        <summary class="header">
           <div class="title"><span class="emoji" aria-hidden="true">${item.emoji}</span> ${item.name}</div>
           <div class="meta">${doneCount}/${days.length} dias</div>
-        </div>
-        <div class="months" role="region" aria-label="Progresso por mês: ${item.name}"></div>
+        </summary>
+        <div class="grid" role="grid" aria-label="Progresso diário: ${item.name}"></div>
       `;
 
-      const monthsContainer = block.querySelector('.months');
+      const grid = block.querySelector('.grid');
+      days.forEach((d, idx)=>{
+        const iso = toISODate(d);
+        const sq = document.createElement('div');
+        sq.className = 'square';
+        sq.title = iso;
+        sq.setAttribute('aria-label', `${item.name} em ${iso} (somente leitura)`);
+        const isDone = state.progress[item.key]?.includes(iso);
+        if(isDone) sq.classList.add('done');
+        if(d.getTime() === today.getTime()) sq.classList.add('today');
+        if(d < today && !isDone) sq.classList.add('missed');
+  // sem marca de início de semana
+        grid.appendChild(sq);
+      });
 
-      let globalIdx = 0;
-      for(const [key, monthDays] of byMonth.entries()){
-        const monthBlock = document.createElement('div');
-        monthBlock.className = 'month-block';
-        const monthDone = monthDays.filter(d=> state.progress[item.key]?.includes(toISODate(d))).length;
-        monthBlock.innerHTML = `
-          <div class="month-header">
-            <div class="month-name">${monthLabel(key)}</div>
-            <div class="month-meta">${monthDone}/${monthDays.length} dias</div>
-          </div>
-          <div class="month-grid" role="grid"></div>
-        `;
-
-        const grid = monthBlock.querySelector('.month-grid');
-        monthDays.forEach((d, idx)=>{
-          const iso = toISODate(d);
-          const sq = document.createElement('button');
-          sq.className = 'square';
-          sq.type = 'button';
-          sq.title = iso;
-          sq.setAttribute('aria-label', `${item.name} em ${iso}`);
-          const isDone = state.progress[item.key]?.includes(iso);
-          if(isDone) sq.classList.add('done');
-          if(d.getTime() === today.getTime()) sq.classList.add('today');
-          if(d < today && !isDone) sq.classList.add('missed');
-          if((globalIdx)%7===0) sq.classList.add('week-start');
-
-          sq.addEventListener('click', async ()=>{
-            toggleProgress(item.key, iso);
-            sq.classList.toggle('done');
-            const meta = block.querySelector('.meta');
-            const newCount = state.progress[item.key].length;
-            meta.textContent = `${newCount}/${days.length} dias`;
-            // atualiza parcial do mês
-            const monthMeta = monthBlock.querySelector('.month-meta');
-            const mDone = monthDays.filter(d=> state.progress[item.key]?.includes(toISODate(d))).length;
-            monthMeta.textContent = `${mDone}/${monthDays.length} dias`;
-            await persist();
-          });
-
-          grid.appendChild(sq);
-          globalIdx++;
-        });
-
-        monthsContainer.appendChild(monthBlock);
-      }
-
-      $activities.appendChild(block);
+  $activities.appendChild(block);
     }
   }
 
@@ -244,6 +242,18 @@
     const i = list.indexOf(dayISO);
     if(i>=0){ list.splice(i,1); }
     else { list.push(dayISO); }
+  }
+
+  // Reset diário: limpa marcações de "hoje" nos botões ao virar o dia
+  function dailyResetIfNeeded(){
+    const todayISO = toISODate(new Date());
+    if(state.lastOpenDay !== todayISO){
+      state.lastOpenDay = todayISO;
+      // Apenas o componente de horários é resetado (não mexe no histórico dos quadrinhos)
+      // O botão “Feito hoje” é derivado de state.progress[...].includes(todayISO), então não há estado separado para limpar.
+      // Nada para limpar aqui; renderSchedule atualizará os botões para o novo dia como "Marcar hoje".
+      writeStateToStorage(state);
+    }
   }
 
   function renderAll(){
@@ -295,6 +305,7 @@
   // inicialização
   const restored = loadStateFromStorage();
   if(restored){ state = ensureStructure(restored); }
+  dailyResetIfNeeded();
   bindControls();
   renderAll();
   // garante que o estado inicial esteja salvo na sessão
@@ -306,4 +317,98 @@
       writeStateToStorage(state);
     }
   });
+
+  // ===== Notificações =====
+  async function registerSW(){
+    if('serviceWorker' in navigator){
+      try{
+        await navigator.serviceWorker.register('./sw.js');
+      }catch(e){ console.warn('SW falhou', e); }
+    }
+  }
+  async function ensureNotificationPermission(){
+    if(!('Notification' in window)){
+      alert('Seu navegador não suporta notificações.');
+      return false;
+    }
+    let perm = Notification.permission;
+    if(perm === 'default') perm = await Notification.requestPermission();
+    if(perm !== 'granted'){
+      alert('Permissão de notificação negada.');
+      return false;
+    }
+    return true;
+  }
+  async function showLocalTestNotification(){
+    try{
+      const ok = await ensureNotificationPermission();
+      if(!ok) return;
+      const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+      if(reg && reg.showNotification){
+        reg.showNotification('Inglês Progresso', { body: 'Exemplo de notificação ativa.' });
+      }else{
+        new Notification('Inglês Progresso', { body: 'Exemplo de notificação ativa.' });
+      }
+    }catch(e){ console.warn(e); }
+  }
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+  async function subscribePush(vapidPublicKey){
+    if(!('serviceWorker' in navigator)){
+      alert('Service Worker não suportado.');
+      return null;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      const appServerKey = urlBase64ToUint8Array(vapidPublicKey);
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appServerKey });
+    }
+    return sub;
+  }
+
+  // Inicializa SW e listeners de botões de notificação
+  registerSW();
+  if($btnNotify){
+    $btnNotify.addEventListener('click', showLocalTestNotification);
+  }
+  if($btnSubscribePush){
+    $btnSubscribePush.addEventListener('click', async ()=>{
+      // IMPORTANTE: Para receber notificações com o navegador fechado, configure um backend de Web Push
+      // e coloque aqui sua chave pública VAPID.
+      const VAPID_PUBLIC = 'COLOQUE_SUA_CHAVE_PUBLICA_VAPID_AQUI';
+      if(VAPID_PUBLIC.startsWith('COLOQUE_')){
+        alert('Para Push em background, configure um backend (Web Push) e defina a chave VAPID.');
+        return;
+      }
+      const ok = await ensureNotificationPermission();
+      if(!ok) return;
+      try{
+        const sub = await subscribePush(VAPID_PUBLIC);
+        console.log('Push subscription:', JSON.stringify(sub));
+        alert('Assinatura criada. Envie essa subscription ao seu backend.');
+      }catch(e){ console.warn(e); alert('Falha ao assinar Push.'); }
+    });
+  }
+  // Verifica permissão ao abrir e mostra prompt se necessário
+  function updateNotifPrompt(){
+    if(!('Notification' in window)) return; // sem suporte, não mostra
+    const alreadySeen = notifPromptSeen();
+    const granted = Notification.permission === 'granted';
+    $notifPrompt.hidden = granted || alreadySeen;
+  }
+  updateNotifPrompt();
+  if($btnNotifPrompt){
+    $btnNotifPrompt.addEventListener('click', async ()=>{
+      const ok = await ensureNotificationPermission();
+      notifPromptSeen(true);
+      updateNotifPrompt();
+    });
+  }
 })();

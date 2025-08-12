@@ -20,30 +20,44 @@
 
     <main class="container">
       <section class="controls-card">
-        <div class="controls">
-          <div id="storageWarning" class="notice error" hidden>
-            Armazenamento do navegador bloqueado. Abra em um navegador normal (não privado) para salvar seu progresso.
-          </div>
-          <div class="control-group">
-            <label for="startDate">Data de início</label>
-            <input type="date" id="startDate" />
-          </div>
-          <div class="control-group">
-            <label for="months">Duração</label>
-            <select id="months">
-              <option value="4" selected>4 meses</option>
-              <option value="3">3 meses</option>
-              <option value="5">5 meses</option>
-              <option value="6">6 meses</option>
-            </select>
-          </div>
-          <div class="control-group range">
-            <div id="rangeText" class="range-text">—</div>
-            <div class="buttons">
-              <button id="btnReset" class="btn ghost" title="Limpar marcações">Limpar</button>
+        <details class="settings">
+          <summary>Configurações</summary>
+          <div class="controls">
+            <div id="storageWarning" class="notice error" hidden>
+              Armazenamento do navegador bloqueado. Abra em um navegador normal (não privado) para salvar seu progresso.
+            </div>
+            <div id="notifPrompt" class="notice warn" hidden>
+              Permita notificações para ser avisado quando começar cada atividade.
+              <button id="btnNotifPrompt" class="btn" style="margin-left:8px">Permitir notificações</button>
+            </div>
+            <div class="control-group">
+              <label for="startDate">Data de início</label>
+              <input type="date" id="startDate" />
+            </div>
+            <div class="control-group">
+              <label for="months">Duração</label>
+              <select id="months">
+                <option value="4" selected>4 meses</option>
+                <option value="3">3 meses</option>
+                <option value="5">5 meses</option>
+                <option value="6">6 meses</option>
+              </select>
+            </div>
+            <div class="control-group range">
+              <div id="rangeText" class="range-text">—</div>
+              <div class="buttons">
+                <button id="btnReset" class="btn ghost" title="Limpar marcações">Limpar</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Notificações</label>
+              <div class="buttons">
+                <button id="btnNotify" class="btn" title="Ativar notificações neste dispositivo">Ativar notificações</button>
+                <button id="btnSubscribePush" class="btn ghost" title="Assinar push para receber com navegador fechado">Assinar Push</button>
+              </div>
             </div>
           </div>
-        </div>
+        </details>
       </section>
 
       <section class="schedule-card">
@@ -52,8 +66,8 @@
       </section>
 
       <section class="grid-card">
-        <h2>Quadradinhos de Progresso (um por dia)</h2>
-        <p class="hint">Toque/clique nos quadrados para marcar o dia concluído. Seu progresso fica salvo neste dispositivo.</p>
+        <h2>Progresso</h2>
+        <p class="hint">Marque as atividades do dia na seção "Horários do dia". O histórico aparece abaixo.</p>
         <div id="activities" class="activities" aria-live="polite"></div>
       </section>
     </main>
@@ -62,7 +76,6 @@
       <div class="legend">
         <span class="legend-item"><span class="square demo done"></span> Feito</span>
         <span class="legend-item"><span class="square demo today"></span> Hoje</span>
-        <span class="legend-item"><span class="square demo week-start"></span> Início de semana</span>
       </div>
       <small>Feito com ❤ para manter a constância. Dica: adicione esta página aos favoritos.</small>
     </footer>
