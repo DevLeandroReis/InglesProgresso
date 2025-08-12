@@ -165,11 +165,11 @@
       const row = document.createElement('div');
       row.className = 'row';
       row.innerHTML = `
-        <div class="badge"><strong>${item.time}</strong></div>
         <div class="activity">
           <span class="emoji" aria-hidden="true">${item.emoji}</span>
           <span class="name">${item.name}</span>
-          <span class="duration">— ${item.duration}</span>
+          <span class="time" aria-label="Horário">${item.time}</span>
+          <span class="duration" aria-label="Duração">${item.duration}</span>
           <button class="btn mini mark-today ${isTodayDone?'done-today':''}" data-key="${item.key}">${isTodayDone ? 'Feito hoje' : 'Marcar hoje'}</button>
         </div>
       `;

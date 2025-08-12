@@ -64,13 +64,16 @@ body{
 .range-text{color:var(--muted)}
 
 /* === Schedule Table === */
-.schedule-table{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center}
-.schedule-table .row{display:contents}
-.badge{background:linear-gradient(90deg, rgba(124,58,237,.9), rgba(34,211,238,.9));padding:10px 12px;border-radius:10px;font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.25)}
-.activity{background:var(--card);border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;min-width:0}
+.schedule-table{display:grid;grid-template-columns:1fr;gap:10px;align-items:center}
+.schedule-table .row{display:block}
+.badge{display:none}
+.activity{background:var(--card);border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
 .activity .emoji{font-size:18px}
-.activity .name{font-weight:700}
-.activity .duration{color:var(--muted)}
+.activity .name{font-weight:800}
+.activity .time{color:var(--muted);font-size:.85rem}
+.activity .duration{color:var(--muted);font-size:.8rem}
+.activity .time::before{content:'·';margin:0 6px;color:rgba(255,255,255,.25)}
+.activity .duration::before{content:'·';margin:0 6px;color:rgba(255,255,255,.25)}
 .activity .mark-today{margin-left:auto;flex-shrink:0}
 .btn.mini{padding:6px 10px;font-size:.85rem;border-radius:8px}
 .btn.mini.done-today{background:var(--done)}
@@ -103,8 +106,7 @@ body{
 
 /* Responsive */
 @media (max-width: 800px){
-  .schedule-table{grid-template-columns:auto 1fr;gap:8px;align-items:center}
-  .badge{font-size:14px;padding:8px 10px;white-space:nowrap}
+  .schedule-table{grid-template-columns:1fr;gap:8px;align-items:center}
   .activity{padding:8px 10px;flex-wrap:wrap}
   .activity .mark-today{width:100%;margin-left:0;margin-top:8px}
   /* grade mensal já é mobile-first */
