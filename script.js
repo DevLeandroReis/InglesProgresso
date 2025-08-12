@@ -170,7 +170,6 @@
           <span class="emoji" aria-hidden="true">${item.emoji}</span>
           <span class="name">${item.name}</span>
           <span class="duration">— ${item.duration}</span>
-          <span style="flex:1"></span>
           <button class="btn mini mark-today ${isTodayDone?'done-today':''}" data-key="${item.key}">${isTodayDone ? 'Feito hoje' : 'Marcar hoje'}</button>
         </div>
       `;
@@ -351,6 +350,60 @@
       }
     }catch(e){ console.warn(e); }
   }
+  // ===== Agendador de notificações locais (navegador aberto) =====
+  let _notifTimers = [];
+  let _midnightTimer = null;
+  function _clearLocalNotificationTimers(){
+    _notifTimers.forEach(id=> clearTimeout(id));
+    _notifTimers = [];
+    if(_midnightTimer){ clearTimeout(_midnightTimer); _midnightTimer = null; }
+  }
+  function _parseStartTime(range){
+    // range como '08:00 – 08:30' (en dash). Pega o início.
+    const startPart = (range.split('–')[0] || range.split('-')[0] || '').trim();
+    const [h,m] = startPart.split(':').map(x=> parseInt(x,10));
+    if(Number.isFinite(h) && Number.isFinite(m)) return {h,m};
+    return null;
+  }
+  function _whenToday(h, m){
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+    return d;
+  }
+  async function _showActivityNotification(item){
+    try{
+      const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+      const title = 'Inglês Progresso';
+      const body = `${item.emoji} ${item.name} — começou agora (${item.time.split('–')[0].trim()})`;
+      const tag = `ingles-progresso:${item.key}:${new Date().toISOString().slice(0,10)}`;
+      const opts = { body, tag, renotify: false, silent: false, icon: undefined, badge: undefined };
+      if(reg && reg.showNotification){ reg.showNotification(title, opts); }
+      else { new Notification(title, opts); }
+    }catch(e){ console.warn('Falha ao notificar', e); }
+  }
+  function scheduleLocalNotificationsForToday(){
+    _clearLocalNotificationTimers();
+    const now = new Date();
+    for(const item of SCHEDULE){
+      const parsed = _parseStartTime(item.time);
+      if(!parsed) continue;
+      const when = _whenToday(parsed.h, parsed.m);
+      const delay = when.getTime() - now.getTime();
+      if(delay > 500){
+        const id = setTimeout(()=>{ _showActivityNotification(item); }, delay);
+        _notifTimers.push(id);
+      }
+      // se já passou hoje, não agenda; o rollover da meia-noite cuidará do próximo dia
+    }
+    // agenda rollover na virada do dia (+2s de margem)
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 2, 0);
+    _midnightTimer = setTimeout(()=>{ scheduleLocalNotificationsForToday(); }, tomorrow.getTime() - now.getTime());
+  }
+  async function startLocalNotifications(){
+    const ok = await ensureNotificationPermission();
+    if(!ok) return;
+    scheduleLocalNotificationsForToday();
+  }
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -376,7 +429,11 @@
   // Inicializa SW e listeners de botões de notificação
   registerSW();
   if($btnNotify){
-    $btnNotify.addEventListener('click', showLocalTestNotification);
+    $btnNotify.addEventListener('click', async ()=>{
+      await startLocalNotifications();
+      // feedback rápido
+      showLocalTestNotification();
+    });
   }
   if($btnSubscribePush){
     $btnSubscribePush.addEventListener('click', async ()=>{
@@ -404,11 +461,16 @@
     $notifPrompt.hidden = granted || alreadySeen;
   }
   updateNotifPrompt();
+  // Se a permissão já estiver concedida, inicia o agendador automaticamente
+  if('Notification' in window && Notification.permission === 'granted'){
+    startLocalNotifications();
+  }
   if($btnNotifPrompt){
     $btnNotifPrompt.addEventListener('click', async ()=>{
       const ok = await ensureNotificationPermission();
       notifPromptSeen(true);
       updateNotifPrompt();
+      if(ok) startLocalNotifications();
     });
   }
 })();

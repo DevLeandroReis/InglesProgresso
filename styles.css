@@ -12,13 +12,16 @@
   --grid:#303457;
 }
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{min-height:100%}
 body{
   margin:0;
   font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;
-  background: radial-gradient(1200px 800px at 80% -10%, rgba(124,58,237,.25), transparent 60%),
-              radial-gradient(900px 700px at -10% 10%, rgba(34,211,238,.15), transparent 50%),
-              var(--bg);
+  /* Gradiente base contínuo: topo mais claro → base mais escura */
+  background:
+    radial-gradient(1200px 800px at 80% -10%, rgba(124,58,237,.18), transparent 70%),
+    radial-gradient(1000px 800px at -10% 10%, rgba(34,211,238,.12), transparent 65%),
+    linear-gradient(180deg, #1a1f3a 0%, #11162e 40%, #0c1024 70%, #080a17 100%);
+  background-repeat: no-repeat;
   color:var(--text);
 }
 
@@ -64,10 +67,11 @@ body{
 .schedule-table{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center}
 .schedule-table .row{display:contents}
 .badge{background:linear-gradient(90deg, rgba(124,58,237,.9), rgba(34,211,238,.9));padding:10px 12px;border-radius:10px;font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.25)}
-.activity{background:var(--card);border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:10px}
+.activity{background:var(--card);border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;min-width:0}
 .activity .emoji{font-size:18px}
 .activity .name{font-weight:700}
 .activity .duration{color:var(--muted)}
+.activity .mark-today{margin-left:auto;flex-shrink:0}
 .btn.mini{padding:6px 10px;font-size:.85rem;border-radius:8px}
 .btn.mini.done-today{background:var(--done)}
 
@@ -101,6 +105,7 @@ body{
 @media (max-width: 800px){
   .schedule-table{grid-template-columns:auto 1fr;gap:8px;align-items:center}
   .badge{font-size:14px;padding:8px 10px;white-space:nowrap}
-  .activity{padding:8px 10px}
+  .activity{padding:8px 10px;flex-wrap:wrap}
+  .activity .mark-today{width:100%;margin-left:0;margin-top:8px}
   /* grade mensal já é mobile-first */
 }
