@@ -52,7 +52,6 @@ body{
 .btn.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .range{flex:1;display:flex;justify-content:space-between;align-items:center}
 .range-text{color:var(--muted)}
-.file-status{margin-top:6px;color:var(--muted);font-size:.9rem}
 
 /* === Schedule Table === */
 .schedule-table{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center}
@@ -63,7 +62,11 @@ body{
 .activity .name{font-weight:700}
 .activity .duration{color:var(--muted)}
 
-/* === Activities Grid === */
+/* === Activities Grid (mobile-first) === */
+:root{ --sq:16px; --gap:6px }
+@media (min-width: 480px){ :root{ --sq:18px; --gap:7px } }
+@media (min-width: 900px){ :root{ --sq:18px; --gap:8px } }
+
 .activities{display:flex;flex-direction:column;gap:18px}
 .activity-block{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px}
 .activity-block .header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
@@ -71,8 +74,20 @@ body{
 .activity-block .title .emoji{font-size:18px}
 .activity-block .meta{color:var(--muted)}
 
-.grid{display:grid;grid-template-columns:repeat(28, 18px);gap:6px}
-.square{width:18px;height:18px;border-radius:4px;background:transparent;border:1px solid var(--grid);cursor:pointer;position:relative}
+/* container de meses */
+.months{display:flex;flex-direction:column;gap:12px}
+@media (min-width: 900px){
+  .months{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:14px}
+}
+.month-block{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px}
+.month-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:700}
+.month-header .month-name{text-transform:capitalize}
+.month-header .month-meta{color:var(--muted);font-weight:600}
+
+/* grade mensal: 7 colunas no mobile para lembrar semanas; maior largura usa 14 para menos altura */
+.month-grid{display:grid;grid-template-columns:repeat(7, var(--sq));gap:var(--gap)}
+@media (min-width: 900px){ .month-grid{grid-template-columns:repeat(14, var(--sq))} }
+.square{width:var(--sq);height:var(--sq);border-radius:4px;background:transparent;border:1px solid var(--grid);cursor:pointer;position:relative}
 .square:hover{outline:2px solid rgba(124,58,237,.35)}
 .square.done{background:linear-gradient(180deg, rgba(16,185,129,.9), rgba(16,185,129,.7));border-color:rgba(16,185,129,.8)}
 .square.today{border-color:var(--today);box-shadow:0 0 0 2px rgba(245,158,11,.3)}
@@ -87,5 +102,5 @@ body{
 @media (max-width: 800px){
   .schedule-table{grid-template-columns:1fr}
   .badge{order:-1}
-  .grid{grid-template-columns:repeat(14, 18px)}
+  /* grade mensal já é mobile-first */
 }

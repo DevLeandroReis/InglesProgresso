@@ -19,30 +19,28 @@
   const $months = qs('#months');
   const $rangeText = qs('#rangeText');
   const $btnReset = qs('#btnReset');
-  const $btnSelectDir = qs('#btnSelectDir');
-  const $btnReload = qs('#btnReload');
-  const $fileStatus = qs('#fileStatus');
+  // sem botões adicionais
 
-  const FILE_NAME = 'ingles-progresso.json';
+  const STORAGE_KEY = 'ingles-progresso:v2';
 
-  async function loadStateFromFile(){
-    if(!dirHandle) return null;
+  function loadStateFromStorage(){
     try{
-      const fileHandle = await dirHandle.getFileHandle(FILE_NAME, { create: false });
-      const file = await fileHandle.getFile();
-      const text = await file.text();
-      return JSON.parse(text);
-    }catch(e){
+      // prioridade: v2
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+      // fallback: v1 legado
+      raw = localStorage.getItem('ingles-progresso:v1');
+      if(raw) return JSON.parse(raw);
+      // fallback: migrar da sessão (se existir)
+      raw = sessionStorage.getItem('ingles-progresso:session');
+      if(raw) return JSON.parse(raw);
       return null;
-    }
+    }catch{ return null; }
   }
-
-  async function writeStateToFile(current){
-    if(!dirHandle) return;
-    const fileHandle = await dirHandle.getFileHandle(FILE_NAME, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(current, null, 2));
-    await writable.close();
+  function writeStateToStorage(current){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    }catch{}
   }
 
   function defaultState(){
@@ -64,7 +62,6 @@
   }
 
   let state = defaultState();
-  let dirHandle = null;
 
   // UI bindings
   function bindControls(){
@@ -85,29 +82,8 @@
       if(confirm('Tem certeza que deseja limpar todas as marcações?')){
         state.progress = {};
         for(const item of SCHEDULE){ state.progress[item.key] = []; }
-        persistAndRender();
+  persistAndRender();
       }
-    });
-
-    // Selecionar pasta e recarregar
-    updateFileUI();
-    $btnSelectDir.addEventListener('click', async ()=>{
-      try{
-        await selectDirectory();
-        updateFileUI('Pasta selecionada. Salvando/Carregando arquivo automaticamente.');
-        await initializeFromFile();
-      }catch(err){
-        console.error(err);
-        updateFileUI('Não foi possível acessar a pasta.');
-      }
-    });
-    $btnReload.addEventListener('click', async ()=>{
-      try{
-        if(!dirHandle){ alert('Selecione uma pasta primeiro.'); return; }
-        const loaded = await loadStateFromFile();
-        if(loaded){ state = ensureStructure(loaded); renderAll(); updateFileUI('Arquivo recarregado.'); }
-        else { updateFileUI('Arquivo não encontrado. Será criado ao salvar.'); }
-      }catch(err){ console.error(err); updateFileUI('Falha ao recarregar.'); }
     });
   }
 
@@ -138,6 +114,20 @@
     }
     return days;
   }
+  function splitByMonth(days){
+    const buckets = new Map(); // key: yyyy-mm -> array<Date>
+    for(const d of days){
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if(!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(d);
+    }
+    return buckets; // mantém ordem de inserção
+  }
+  function monthLabel(yyyyMM){
+    const [y,m] = yyyyMM.split('-').map(Number);
+    const dt = new Date(y, m-1, 1);
+    return dt.toLocaleDateString(undefined, { month:'long', year:'numeric' });
+  }
 
   // Render tabela de horários
   function renderSchedule(){
@@ -166,7 +156,7 @@
     $rangeText.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()} (${state.months} meses)`;
 
     const days = eachDay(start, end);
-    const weeks = Math.ceil(days.length/7);
+  const byMonth = splitByMonth(days);
 
     $activities.innerHTML = '';
 
@@ -179,36 +169,57 @@
           <div class="title"><span class="emoji" aria-hidden="true">${item.emoji}</span> ${item.name}</div>
           <div class="meta">${doneCount}/${days.length} dias</div>
         </div>
-        <div class="grid" role="grid" aria-label="Progresso diário: ${item.name}"></div>
+        <div class="months" role="region" aria-label="Progresso por mês: ${item.name}"></div>
       `;
 
-      const grid = block.querySelector('.grid');
+      const monthsContainer = block.querySelector('.months');
 
-      days.forEach((d, idx)=>{
-        const iso = toISODate(d);
-        const sq = document.createElement('button');
-        sq.className = 'square';
-        sq.type = 'button';
-        sq.title = iso;
-        sq.setAttribute('aria-label', `${item.name} em ${iso}`);
-        const isDone = state.progress[item.key]?.includes(iso);
-        if(isDone) sq.classList.add('done');
-        if(d.getTime() === today.getTime()) sq.classList.add('today');
-        if(d < today && !isDone) sq.classList.add('missed');
-        if(idx%7===0) sq.classList.add('week-start');
+      let globalIdx = 0;
+      for(const [key, monthDays] of byMonth.entries()){
+        const monthBlock = document.createElement('div');
+        monthBlock.className = 'month-block';
+        const monthDone = monthDays.filter(d=> state.progress[item.key]?.includes(toISODate(d))).length;
+        monthBlock.innerHTML = `
+          <div class="month-header">
+            <div class="month-name">${monthLabel(key)}</div>
+            <div class="month-meta">${monthDone}/${monthDays.length} dias</div>
+          </div>
+          <div class="month-grid" role="grid"></div>
+        `;
 
-        sq.addEventListener('click', async ()=>{
-          toggleProgress(item.key, iso);
-          // update visual rápido
-          sq.classList.toggle('done');
-          const meta = block.querySelector('.meta');
-          const newCount = state.progress[item.key].length;
-          meta.textContent = `${newCount}/${days.length} dias`;
-          await persist();
+        const grid = monthBlock.querySelector('.month-grid');
+        monthDays.forEach((d, idx)=>{
+          const iso = toISODate(d);
+          const sq = document.createElement('button');
+          sq.className = 'square';
+          sq.type = 'button';
+          sq.title = iso;
+          sq.setAttribute('aria-label', `${item.name} em ${iso}`);
+          const isDone = state.progress[item.key]?.includes(iso);
+          if(isDone) sq.classList.add('done');
+          if(d.getTime() === today.getTime()) sq.classList.add('today');
+          if(d < today && !isDone) sq.classList.add('missed');
+          if((globalIdx)%7===0) sq.classList.add('week-start');
+
+          sq.addEventListener('click', async ()=>{
+            toggleProgress(item.key, iso);
+            sq.classList.toggle('done');
+            const meta = block.querySelector('.meta');
+            const newCount = state.progress[item.key].length;
+            meta.textContent = `${newCount}/${days.length} dias`;
+            // atualiza parcial do mês
+            const monthMeta = monthBlock.querySelector('.month-meta');
+            const mDone = monthDays.filter(d=> state.progress[item.key]?.includes(toISODate(d))).length;
+            monthMeta.textContent = `${mDone}/${monthDays.length} dias`;
+            await persist();
+          });
+
+          grid.appendChild(sq);
+          globalIdx++;
         });
 
-  grid.appendChild(sq);
-      });
+        monthsContainer.appendChild(monthBlock);
+      }
 
       $activities.appendChild(block);
     }
@@ -259,26 +270,25 @@
     }
   }
   async function persist(){
-    if(dirHandle){
-      await writeStateToFile(state);
-      updateFileUI('Salvo.');
-    }
+  writeStateToStorage(state);
   }
   async function persistAndRender(){
     await persist();
     renderAll();
   }
-  function updateFileUI(message){
-    if(!dirHandle){
-      $fileStatus.textContent = 'Nenhuma pasta selecionada. Selecione uma pasta para salvar/ler "ingles-progresso.json".';
-      $btnReload.disabled = true;
-      return;
-    }
-    $btnReload.disabled = false;
-    $fileStatus.textContent = message || `Usando arquivo "${FILE_NAME}" na pasta selecionada.`;
-  }
+  function updateFileUI(){ /* não usado em sessionStorage */ }
 
   // inicialização
+  const restored = loadStateFromStorage();
+  if(restored){ state = ensureStructure(restored); }
   bindControls();
   renderAll();
+  // garante que o estado inicial esteja salvo na sessão
+  writeStateToStorage(state);
+  // tentativa extra de persistir ao ocultar/fechar a aba
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState !== 'visible'){
+      writeStateToStorage(state);
+    }
+  });
 })();
