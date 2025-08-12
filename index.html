@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cronograma de Estudos – Inglês Progresso</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="app-emoji">🇬🇧</span>
+        <h1>Inglês Progresso</h1>
+      </div>
+      <p class="subtitle">3h 25m por dia • Plano de 4 meses</p>
+    </header>
+
+    <main class="container">
+      <section class="controls-card">
+        <div class="controls">
+          <div class="control-group">
+            <label for="startDate">Data de início</label>
+            <input type="date" id="startDate" />
+          </div>
+          <div class="control-group">
+            <label for="months">Duração</label>
+            <select id="months">
+              <option value="4" selected>4 meses</option>
+              <option value="3">3 meses</option>
+              <option value="5">5 meses</option>
+              <option value="6">6 meses</option>
+            </select>
+          </div>
+          <div class="control-group range">
+            <div id="rangeText" class="range-text">—</div>
+            <div class="buttons">
+              <button id="btnReset" class="btn ghost" title="Limpar marcações">Limpar</button>
+              <button id="btnSelectDir" class="btn" title="Escolher pasta para salvar/ler o arquivo de progresso">Selecionar pasta</button>
+              <button id="btnReload" class="btn ghost" title="Recarregar do arquivo de progresso">Recarregar do arquivo</button>
+            </div>
+          </div>
+          <div class="file-status" id="fileStatus" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="schedule-card">
+        <h2>Horários do dia</h2>
+        <div id="scheduleTable" class="schedule-table" aria-live="polite"></div>
+      </section>
+
+      <section class="grid-card">
+  <h2>Quadradinhos de Progresso (um por dia)</h2>
+  <p class="hint">Toque/clique nos quadrados para marcar o dia concluído. Seu progresso fica salvo neste dispositivo.</p>
+        <div id="activities" class="activities" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="legend">
+        <span class="legend-item"><span class="square demo done"></span> Feito</span>
+        <span class="legend-item"><span class="square demo today"></span> Hoje</span>
+        <span class="legend-item"><span class="square demo week-start"></span> Início de semana</span>
+      </div>
+      <small>Feito com ❤ para manter a constância. Dica: adicione esta página aos favoritos.</small>
+    </footer>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

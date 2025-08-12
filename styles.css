@@ -1,0 +1,91 @@
+/* === Reset básico e tokens === */
+:root{
+  --bg:#0f1225;
+  --card:#161a34;
+  --muted:#98a2b3;
+  --text:#eef2ff;
+  --accent:#7c3aed;
+  --accent-2:#22d3ee;
+  --danger:#ef4444;
+  --done:#10b981;
+  --today:#f59e0b;
+  --grid:#303457;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;
+  background: radial-gradient(1200px 800px at 80% -10%, rgba(124,58,237,.25), transparent 60%),
+              radial-gradient(900px 700px at -10% 10%, rgba(34,211,238,.15), transparent 50%),
+              var(--bg);
+  color:var(--text);
+}
+
+/* === Header === */
+.app-header{display:flex;flex-direction:column;gap:.25rem;align-items:center;padding:28px 16px}
+.brand{display:flex;align-items:center;gap:.6rem}
+.app-emoji{font-size:28px}
+.app-header h1{font-size:28px;margin:0;font-weight:800;letter-spacing:.4px}
+.subtitle{margin:0;color:var(--muted)}
+
+/* === Container === */
+.container{max-width:1100px;margin:0 auto;padding:0 16px 64px;display:flex;flex-direction:column;gap:18px}
+
+.controls-card,.schedule-card,.grid-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.controls-card{padding:12px}
+.schedule-card{padding:16px}
+.grid-card{padding:16px}
+
+/* === Controls === */
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.control-group{display:flex;flex-direction:column;gap:6px}
+.control-group label{font-weight:600;color:var(--muted)}
+.control-group input[type="date"], .control-group select{
+  background:var(--card);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:10px 12px;border-radius:10px;min-width:180px;outline:none
+}
+.buttons{display:flex;gap:8px;align-items:center}
+.btn{background:var(--accent);border:none;color:white;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;transition:.15s transform,.15s filter}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.14);color:var(--text)}
+.btn.file{display:inline-flex;align-items:center;gap:8px;position:relative;overflow:hidden}
+.btn.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.range{flex:1;display:flex;justify-content:space-between;align-items:center}
+.range-text{color:var(--muted)}
+.file-status{margin-top:6px;color:var(--muted);font-size:.9rem}
+
+/* === Schedule Table === */
+.schedule-table{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center}
+.schedule-table .row{display:contents}
+.badge{background:linear-gradient(90deg, rgba(124,58,237,.9), rgba(34,211,238,.9));padding:10px 12px;border-radius:10px;font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.25)}
+.activity{background:var(--card);border:1px solid rgba(255,255,255,.08);padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:10px}
+.activity .emoji{font-size:18px}
+.activity .name{font-weight:700}
+.activity .duration{color:var(--muted)}
+
+/* === Activities Grid === */
+.activities{display:flex;flex-direction:column;gap:18px}
+.activity-block{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px}
+.activity-block .header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.activity-block .title{display:flex;align-items:center;gap:10px;font-weight:800}
+.activity-block .title .emoji{font-size:18px}
+.activity-block .meta{color:var(--muted)}
+
+.grid{display:grid;grid-template-columns:repeat(28, 18px);gap:6px}
+.square{width:18px;height:18px;border-radius:4px;background:transparent;border:1px solid var(--grid);cursor:pointer;position:relative}
+.square:hover{outline:2px solid rgba(124,58,237,.35)}
+.square.done{background:linear-gradient(180deg, rgba(16,185,129,.9), rgba(16,185,129,.7));border-color:rgba(16,185,129,.8)}
+.square.today{border-color:var(--today);box-shadow:0 0 0 2px rgba(245,158,11,.3)}
+.square.missed{opacity:.4}
+.square.week-start{box-shadow:inset 3px 0 0 rgba(255,255,255,.15);}
+.legend{display:flex;gap:12px;align-items:center}
+.legend-item{display:inline-flex;gap:6px;align-items:center;color:var(--muted)}
+.demo{display:inline-block}
+.footer{max-width:1100px;margin:18px auto;padding:0 16px;color:var(--muted)}
+
+/* Responsive */
+@media (max-width: 800px){
+  .schedule-table{grid-template-columns:1fr}
+  .badge{order:-1}
+  .grid{grid-template-columns:repeat(14, 18px)}
+}
