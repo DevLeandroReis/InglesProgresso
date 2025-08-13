@@ -23,6 +23,7 @@
   const $btnSubscribePush = qs('#btnSubscribePush');
   const $notifPrompt = qs('#notifPrompt');
   const $btnNotifPrompt = qs('#btnNotifPrompt');
+  const $achievements = qs('#achievements');
   // sem botões adicionais
 
   const STORAGE_KEY = 'ingles-progresso:v2';
@@ -75,6 +76,11 @@
       startDate: todayISO,
       months: 4,
   lastOpenDay: todayISO,
+  lastCelebrateDay: '',
+      achievements: {
+        perfectDays: 0, // total histórico
+        claimed: 0      // quantas conquistas já resgatadas (cada uma = 7 dias)
+      },
       progress: {
         // por atividade: array de datas concluídas (ISO)
       }
@@ -85,6 +91,8 @@
     for(const item of SCHEDULE){
       if(!st.progress[item.key]) st.progress[item.key] = [];
     }
+  if(typeof st.lastCelebrateDay !== 'string') st.lastCelebrateDay = '';
+  if(!st.achievements) st.achievements = { perfectDays: 0, claimed: 0 };
     return st;
   }
 
@@ -189,51 +197,59 @@
         await persist();
         // atualiza grids e metas
         renderActivities();
+  // se todas concluídas hoje após esta ação, comemora
+  celebrateIfAllDone();
       });
     });
   }
 
-  // Render atividades com quadradinhos
+  // Render progresso como gráfico (barras: feito vs faltante) por categoria + geral
   function renderActivities(){
     const start = clampDay(state.startDate);
     const end = addMonths(start, state.months);
-    const today = clampDay(new Date());
-
+    const days = eachDay(start, end);
+    const totalDays = days.length;
     $rangeText.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()} (${state.months} meses)`;
 
-  const days = eachDay(start, end);
-
+    // Limpa container
     $activities.innerHTML = '';
 
+    // Resumo geral (todas categorias somadas)
+    const totalPossible = totalDays * SCHEDULE.length;
+    const totalDone = SCHEDULE.reduce((acc, it)=> acc + ((state.progress[it.key]||[]).length), 0);
+    const totalPct = totalPossible ? Math.round((totalDone/totalPossible)*100) : 0;
+
+    const chart = document.createElement('div');
+    chart.className = 'progress-chart';
+    // linha geral
+    const rowAll = document.createElement('div');
+    rowAll.className = 'chart-row overall';
+    rowAll.innerHTML = `
+      <div class="chart-label"><strong>Geral</strong></div>
+      <div class="chart-bar" aria-label="Progresso geral">
+        <div class="chart-fill" style="width:${totalPct}%"></div>
+      </div>
+      <div class="chart-meta">${totalDone}/${totalPossible}</div>
+    `;
+    chart.appendChild(rowAll);
+
+    // linhas por categoria
     for(const item of SCHEDULE){
-      const block = document.createElement('details');
-      block.className = 'activity-block';
-      const doneCount = (state.progress[item.key]||[]).length;
-      block.innerHTML = `
-        <summary class="header">
-          <div class="title"><span class="emoji" aria-hidden="true">${item.emoji}</span> ${item.name}</div>
-          <div class="meta">${doneCount}/${days.length} dias</div>
-        </summary>
-        <div class="grid" role="grid" aria-label="Progresso diário: ${item.name}"></div>
+      const done = (state.progress[item.key]||[]).length;
+      const pct = totalDays ? Math.round((done/totalDays)*100) : 0;
+      const row = document.createElement('div');
+      row.className = 'chart-row';
+      row.innerHTML = `
+        <div class="chart-label"><span class="emoji" aria-hidden="true">${item.emoji}</span> ${item.name}</div>
+        <div class="chart-bar" aria-label="Progresso ${item.name}">
+          <div class="chart-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="chart-meta">${done}/${totalDays}</div>
       `;
-
-      const grid = block.querySelector('.grid');
-      days.forEach((d, idx)=>{
-        const iso = toISODate(d);
-        const sq = document.createElement('div');
-        sq.className = 'square';
-        sq.title = iso;
-        sq.setAttribute('aria-label', `${item.name} em ${iso} (somente leitura)`);
-        const isDone = state.progress[item.key]?.includes(iso);
-        if(isDone) sq.classList.add('done');
-        if(d.getTime() === today.getTime()) sq.classList.add('today');
-        if(d < today && !isDone) sq.classList.add('missed');
-  // sem marca de início de semana
-        grid.appendChild(sq);
-      });
-
-  $activities.appendChild(block);
+      chart.appendChild(row);
     }
+
+    $activities.appendChild(chart);
   }
 
   function toggleProgress(key, dayISO){
@@ -258,6 +274,127 @@
   function renderAll(){
     renderSchedule();
     renderActivities();
+  renderAchievements();
+  }
+  // ===== Vitória (animação) =====
+  function isAllDoneToday(){
+    const todayISO = toISODate(new Date());
+    return SCHEDULE.every(item => (state.progress[item.key]||[]).includes(todayISO));
+  }
+  function triggerVictoryAnimation(){
+    const overlay = document.createElement('div');
+    overlay.className = 'celebration-overlay';
+    // cria confetes
+    const COUNT = 120;
+    for(let i=0;i<COUNT;i++){
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      const left = Math.random()*100; // vw
+      const size = 6 + Math.random()*8;
+      const rot = Math.floor(Math.random()*360);
+      const delay = Math.random()*0.3;
+      const dur = 2.2 + Math.random()*0.8;
+      const hue = Math.floor(Math.random()*360);
+      c.style.left = left+'vw';
+      c.style.width = size+'px';
+      c.style.height = (size*0.6)+'px';
+      c.style.background = `hsl(${hue} 85% 60%)`;
+      c.style.transform = `rotate(${rot}deg)`;
+      c.style.animationDelay = `${delay}s`;
+      c.style.animationDuration = `${dur}s`;
+      overlay.appendChild(c);
+    }
+    document.body.appendChild(overlay);
+    // vibração rápida (se suportado)
+    if(navigator.vibrate) try{ navigator.vibrate([120,40,120]); }catch{}
+    // remove após término
+    setTimeout(()=>{ overlay.remove(); }, 3200);
+  }
+  function celebrateIfAllDone(){
+    const todayISO = toISODate(new Date());
+    if(isAllDoneToday() && state.lastCelebrateDay !== todayISO){
+      const perfectBefore = state.achievements?.perfectDays || 0;
+      const unlockedBefore = Math.floor(perfectBefore / 7);
+      state.lastCelebrateDay = todayISO;
+      writeStateToStorage(state);
+      const unlockedAfter = addPerfectDayAndMaybeUnlock();
+      // Se alcançou um novo múltiplo de 7, mostra animação de conquista e ancora na seção
+      if(unlockedAfter > unlockedBefore){
+        const newlyIndex = unlockedAfter - 1; // índice recém-desbloqueado
+        triggerAchievementAnimation(newlyIndex);
+        const target = document.querySelector('.achievements-card') || document.getElementById('achievements');
+        if(target){ try{ target.scrollIntoView({ behavior:'smooth', block:'start' }); }catch{} }
+      }else{
+        // caso contrário, mantém a animação tradicional de vitória
+        triggerVictoryAnimation();
+      }
+    }
+  }
+
+  // Animação especial de conquista
+  function triggerAchievementAnimation(prizeIndex){
+    const overlay = document.createElement('div');
+    overlay.className = 'achievement-overlay';
+    const prize = getPrizeForIndex(prizeIndex || 0);
+    overlay.innerHTML = `
+      <div class="ach-card">
+        <div class="ring"></div>
+        <div class="medal">${prize.emoji || '🏅'}</div>
+        <div class="title">Conquista desbloqueada!</div>
+        <div class="name">${prize.name || 'Nova conquista'}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    if(navigator.vibrate) try{ navigator.vibrate([160,40,160]); }catch{}
+    setTimeout(()=>{ overlay.remove(); }, 2600);
+  }
+
+  // ===== Conquistas (7 dias perfeitos) =====
+  function addPerfectDayAndMaybeUnlock(){
+    state.achievements.perfectDays += 1;
+    const unlocked = Math.floor(state.achievements.perfectDays / 7);
+    // não incrementa claimed automaticamente; claimed representa quantas já foram mostradas/resgatadas
+    writeStateToStorage(state);
+    renderAchievements();
+    return unlocked;
+  }
+  const FUN_PRIZES = [
+    { emoji:'🏆', name:'Cálice da Fluência', desc:'Você ganhou um cálice dourado que melhora sua pronúncia por 0.0001%.' },
+    { emoji:'🦄', name:'Unicórnio Bilíngue', desc:'Agora você pode dizer “hi” com glitter.' },
+    { emoji:'🍕', name:'Pizza da Gramática', desc:'Cada fatia corrige um erro de preposição.' },
+    { emoji:'🛡️', name:'Escudo Anti “Hesitation”', desc:'Bloqueia “ããã…” por 3 frases.' },
+    { emoji:'🎩', name:'Cartola do Acento Britânico', desc:'Chá incluso. Açúcar, não.' },
+    { emoji:'🪄', name:'Varinha do Vocabulário', desc:'Aprende 3 palavras mágicas: “consistent”, “practice”, “done”.' },
+    { emoji:'🧊', name:'Gelo da Calma', desc:'Derrete a ansiedade em apresentações.' },
+  ];
+  function getPrizeForIndex(i){
+    return FUN_PRIZES[i % FUN_PRIZES.length];
+  }
+  function renderAchievements(){
+    if(!$achievements) return;
+    const totalPerfect = state.achievements.perfectDays || 0;
+    const unlocked = Math.floor(totalPerfect / 7);
+    const nextProgress = totalPerfect % 7; // 0..6
+    const nextNeed = 7 - nextProgress;
+    const prize = getPrizeForIndex(unlocked); // o próximo a ser desbloqueado
+
+    const barPct = Math.round((nextProgress / 7) * 100);
+    $achievements.innerHTML = `
+      <div class="achievement-header">
+        <div class="achievement-title">Dias perfeitos: <strong>${totalPerfect}</strong></div>
+        <div class="achievement-claimed">Conquistas: <strong>${unlocked}</strong></div>
+      </div>
+      <div class="progress-wrap" aria-label="Progresso para próxima conquista">
+        <div class="progress-bar" style="width:${barPct}%"></div>
+      </div>
+      <div class="prize" role="status" aria-live="polite">
+        <span class="emoji">${prize.emoji}</span>
+        <div>
+          <div class="name">Próxima conquista: ${prize.name}</div>
+          <div class="desc" style="color:var(--muted)">${prize.desc} — Faltam <strong>${nextNeed}</strong> dia(s).</div>
+        </div>
+      </div>
+    `;
   }
 
   // ========= Persistência em arquivo (ler e escrever) =========
@@ -343,11 +480,23 @@
       const ok = await ensureNotificationPermission();
       if(!ok) return;
       const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
-      if(reg && reg.showNotification){
-        reg.showNotification('Inglês Progresso', { body: 'Exemplo de notificação ativa.' });
-      }else{
-        new Notification('Inglês Progresso', { body: 'Exemplo de notificação ativa.' });
-      }
+      const testItem = SCHEDULE[0];
+      const bodyText = buildFunnyNotificationBody(testItem, true);
+      const opts = {
+        body: bodyText,
+        icon: './icons/favicon.svg',
+        image: './icons/notif-banner.png',
+        badge: './icons/favicon.svg',
+        vibrate: [80, 20, 80],
+        actions: [
+          { action: 'abrir', title: 'Abrir app' },
+          { action: 'feito', title: 'Marcar feito' }
+        ],
+        tag: 'ingles-progresso:test',
+        data: { url: '/', type: 'test' }
+      };
+      if(reg && reg.showNotification){ reg.showNotification('Inglês Progresso', opts); }
+      else { new Notification('Inglês Progresso', opts); }
     }catch(e){ console.warn(e); }
   }
   // ===== Agendador de notificações locais (navegador aberto) =====
@@ -374,12 +523,59 @@
     try{
       const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
       const title = 'Inglês Progresso';
-      const body = `${item.emoji} ${item.name} — começou agora (${item.time.split('–')[0].trim()})`;
+  const body = buildFunnyNotificationBody(item);
       const tag = `ingles-progresso:${item.key}:${new Date().toISOString().slice(0,10)}`;
-      const opts = { body, tag, renotify: false, silent: false, icon: undefined, badge: undefined };
+      const todayISO = new Date().toISOString().slice(0,10);
+      const opts = {
+        body,
+        tag,
+        renotify: false,
+        silent: false,
+        icon: './icons/favicon.svg',
+        badge: './icons/favicon.svg',
+        image: './icons/notif-banner.png',
+        vibrate: [90, 30, 90],
+        actions: [
+          { action: 'abrir', title: 'Abrir app' },
+          { action: 'feito', title: 'Marcar feito' }
+        ],
+        data: { url: '/', type: 'activity', key: item.key, date: todayISO }
+      };
       if(reg && reg.showNotification){ reg.showNotification(title, opts); }
       else { new Notification(title, opts); }
     }catch(e){ console.warn('Falha ao notificar', e); }
+  }
+
+  // ===== Frases engraçadas (familia-friendly) =====
+  const NOTIF_PARTS = {
+    intros: [
+      'Hora do upgrade', 'Missão do dia', 'Ding ding', 'Nível +1', 'Alerta de XP', 'Sinal verde', 'Momento foco',
+      'Check-in de constância', 'Chamado da fluência', 'Ritual do inglês', 'Quest ativa', 'Turbo ligado',
+      'Mini sprint', 'Pomodoro pronto', 'Start now', 'Let’s go', 'Go time', 'Time to learn', 'Vibe de estudo', 'Foco on'
+    ],
+    middles: [
+      '{act} começou agora', '{act} te chama', 'Primeiro passo: {act}', 'Ponte aérea rumo à fluência: {act}',
+      'Só começar com {act}', '{act}: 1% melhor hoje', 'Anti-procrastinação: {act}',
+      'Tiny habit do dia: {act}', 'XP em curso: {act}', 'Combo perfeito: respira e {act}',
+      'Modo treino: {act}', 'Ritmo constante com {act}', 'Sem pressa, com {act}', '{act} para aquecer',
+      'Checklist te esperando: {act}', 'Streak sorri com {act}', 'Seu eu do futuro ama {act}',
+      '5 min viram 25 com {act}', 'Só dar play em {act}', 'Comece suave: {act}'
+    ],
+    outros: [
+      'Bora?', 'Partiu?', 'Play!', 'Valendo!', 'Vai uma rodada?', 'Tô contigo!', 'Fé no processo.',
+      'Seu progresso agradece.', 'Constância vence.', 'Você consegue!', 'Foco e vapo.', 'Só vem!',
+      'Um passo por vez.', 'Agora é a hora.', 'Let’s do it!', 'Keep going!', 'Bora brilhar!', 'Rumo ao OK!',
+      'Curto e direto.', 'Microvitória agora.'
+    ]
+  };
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function buildFunnyNotificationBody(item, includeTime=false){
+    const act = `${item.emoji} ${item.name}`;
+    const intro = pick(NOTIF_PARTS.intros);
+    const midT = pick(NOTIF_PARTS.middles).replace('{act}', act);
+    const outro = pick(NOTIF_PARTS.outros);
+    const time = includeTime ? ` (${(item.time.split('–')[0]||'').trim()})` : '';
+    return `${intro}! ${midT}${time}. ${outro}`;
   }
   function scheduleLocalNotificationsForToday(){
     _clearLocalNotificationTimers();
@@ -464,6 +660,17 @@
   // Se a permissão já estiver concedida, inicia o agendador automaticamente
   if('Notification' in window && Notification.permission === 'granted'){
     startLocalNotifications();
+  }
+  // Recebe ações do Service Worker para marcar como feito ao clicar na ação da notificação
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message', (event)=>{
+      const msg = event.data;
+      if(msg && msg.type === 'mark-today' && msg.key){
+        const iso = msg.date || toISODate(new Date());
+        toggleProgress(msg.key, iso);
+        persistAndRender();
+      }
+    });
   }
   if($btnNotifPrompt){
     $btnNotifPrompt.addEventListener('click', async ()=>{

@@ -42,6 +42,16 @@ body{
 .controls-card details.settings[open] > summary{margin-bottom:8px}
 .schedule-card{padding:16px}
 .grid-card{padding:16px}
+/* Achievements */
+.achievements-card{padding:16px}
+.achievements{display:flex;flex-direction:column;gap:12px}
+.achievement-header{display:flex;justify-content:space-between;align-items:center}
+.achievement-title{font-weight:800}
+.progress-wrap{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden}
+.progress-bar{height:10px;background:linear-gradient(90deg, rgba(124,58,237,.9), rgba(34,211,238,.9));width:0%}
+.prize{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center}
+.prize .emoji{font-size:20px}
+.prize .name{font-weight:700}
 
 /* === Controls === */
 .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
@@ -84,25 +94,37 @@ body{
 @media (min-width: 900px){ :root{ --sq:18px; --gap:8px } }
 
 .activities{display:flex;flex-direction:column;gap:18px}
-.activity-block{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:8px}
-.activity-block .header{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;list-style:none}
-.activity-block[open] .header{margin-bottom:10px}
-.activity-block .title{display:flex;align-items:center;gap:10px;font-weight:800}
-.activity-block .title .emoji{font-size:18px}
-.activity-block .meta{color:var(--muted)}
-
-/* grade única por atividade */
-.grid{display:grid;grid-template-columns:repeat(14, var(--sq));gap:var(--gap)}
-@media (max-width: 480px){ .grid{grid-template-columns:repeat(7, var(--sq))} }
-.square{width:var(--sq);height:var(--sq);border-radius:4px;background:transparent;border:1px solid var(--grid);cursor:default;position:relative}
-.square:hover{outline:2px solid rgba(124,58,237,.35)}
-.square.done{background:linear-gradient(180deg, rgba(16,185,129,.9), rgba(16,185,129,.7));border-color:rgba(16,185,129,.8)}
-.square.today{border-color:var(--today);box-shadow:0 0 0 2px rgba(245,158,11,.3)}
-.square.missed{opacity:.4}
+.progress-chart{display:flex;flex-direction:column;gap:10px}
+.chart-row{display:grid;grid-template-columns: minmax(140px, 1fr) 6fr auto;gap:10px;align-items:center;background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px}
+.chart-row.overall{border:1px solid rgba(124,58,237,.5)}
+.chart-label{display:flex;align-items:center;gap:8px;font-weight:700}
+.chart-label .emoji{font-size:18px}
+.chart-bar{position:relative;height:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;overflow:hidden}
+.chart-fill{position:absolute;inset:0 auto 0 0;width:0%;background:linear-gradient(90deg, rgba(16,185,129,1), rgba(34,211,238,.9));}
+.chart-meta{color:var(--muted);font-weight:700;min-width:78px;text-align:right}
 .legend{display:flex;gap:12px;align-items:center}
 .legend-item{display:inline-flex;gap:6px;align-items:center;color:var(--muted)}
 .demo{display:inline-block}
 .footer{max-width:1100px;margin:18px auto;padding:0 16px;color:var(--muted)}
+
+/* ===== Celebração (confete) ===== */
+.celebration-overlay{position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden}
+.confetti{position:absolute;top:-10vh;opacity:.95;border-radius:2px;animation:confetti-fall linear forwards}
+@keyframes confetti-fall{
+  0%{ transform: translateY(-10vh) rotate(0deg); }
+  100%{ transform: translateY(110vh) rotate(720deg); }
+}
+
+/* ===== Animação de conquista ===== */
+.achievement-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);z-index:10000}
+.ach-card{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);padding:18px 22px;border-radius:16px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:pop-in .3s ease-out}
+.ach-card .medal{font-size:44px;animation:pulse 1.4s ease-in-out infinite}
+.ach-card .title{font-weight:900;letter-spacing:.3px;margin-top:8px}
+.ach-card .name{color:var(--muted);font-weight:700}
+.ach-card .ring{position:absolute;inset:-12px;pointer-events:none;border-radius:20px;border:2px solid rgba(124,58,237,.6);animation:ring 1.8s ease-out infinite}
+@keyframes pop-in{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+@keyframes ring{0%{opacity:.8;box-shadow:0 0 0 0 rgba(124,58,237,.6)}100%{opacity:0;box-shadow:0 0 0 24px rgba(124,58,237,0)}}
 
 /* Responsive */
 @media (max-width: 800px){
