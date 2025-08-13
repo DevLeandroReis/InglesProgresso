@@ -1,13 +1,13 @@
 // Inglês Progresso – página única com salvamento local
 (function(){
   const SCHEDULE = [
-    { time: '08:00 – 08:30', emoji: '🃏', name: 'Flashcards', duration: '30 min', key: 'flashcards' },
-    { time: '08:30 – 09:00', emoji: '📱', name: 'App Ewa English', duration: '30 min', key: 'ewa' },
-    { time: '13:30 – 13:55', emoji: '▶️', name: 'YouTube Shorts/Vídeos', duration: '25 min', key: 'shorts' },
-    { time: '13:55 – 14:10', emoji: '🎓', name: 'YouTube Aula de Inglês', duration: '15 min', key: 'aula' },
-    { time: '20:00 – 20:30', emoji: '📖', name: 'Leitura (Livros ou Comics)', duration: '30 min', key: 'leitura' },
-    { time: '20:30 – 21:00', emoji: '🎵', name: 'Estudo de músicas em inglês', duration: '30 min', key: 'musicas' },
-    { time: '21:00 – 21:45', emoji: '🎬', name: 'Episódios de série em inglês', duration: '45 min', key: 'serie' },
+    { time: '08:00 – 08:30', emoji: '🃏', name: 'Flashcards', duration: '30 min', key: 'flashcards', message: '🃏 Flashcards: 30 min para revisar e fixar o vocabulário.' },
+    { time: '08:30 – 09:00', emoji: '📱', name: 'App Ewa English', duration: '30 min', key: 'ewa', message: '📱 EWA English: prática rápida agora.' },
+    { time: '13:30 – 13:55', emoji: '▶️', name: 'YouTube Shorts/Vídeos', duration: '25 min', key: 'shorts', message: '▶️ Vídeos curtos em inglês: dê o play.' },
+    { time: '13:55 – 14:10', emoji: '🎓', name: 'YouTube Aula de Inglês', duration: '15 min', key: 'aula', message: '🎓 Aula de inglês no YouTube: vamos aprender.' },
+    { time: '20:00 – 20:30', emoji: '📖', name: 'Leitura (Livros ou Comics)', duration: '30 min', key: 'leitura', message: '📖 Leitura em inglês: 30 min de foco.' },
+    { time: '20:30 – 21:00', emoji: '🎵', name: 'Estudo de músicas em inglês', duration: '30 min', key: 'musicas', message: '🎵 Estudar músicas em inglês: bora!' },
+    { time: '21:00 – 21:45', emoji: '🎬', name: 'Episódios de série em inglês', duration: '45 min', key: 'serie', message: '🎬 Episódio em inglês: treine sua escuta.' },
   ];
 
   const qs = (sel, el=document) => el.querySelector(sel);
@@ -501,7 +501,7 @@
       if(!ok) return;
       const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
       const testItem = SCHEDULE[0];
-      const bodyText = buildFunnyNotificationBody(testItem, true);
+  const bodyText = buildFixedNotificationBody(testItem, true);
       const opts = {
         body: bodyText,
         icon: './icons/favicon.svg',
@@ -543,7 +543,7 @@
     try{
       const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
       const title = 'Inglês Progresso';
-  const body = buildFunnyNotificationBody(item);
+  const body = buildFixedNotificationBody(item);
       const tag = `ingles-progresso:${item.key}:${new Date().toISOString().slice(0,10)}`;
       const todayISO = new Date().toISOString().slice(0,10);
       const opts = {
@@ -566,36 +566,14 @@
     }catch(e){ console.warn('Falha ao notificar', e); }
   }
 
-  // ===== Frases engraçadas (familia-friendly) =====
-  const NOTIF_PARTS = {
-    intros: [
-      'Hora do upgrade', 'Missão do dia', 'Ding ding', 'Nível +1', 'Alerta de XP', 'Sinal verde', 'Momento foco',
-      'Check-in de constância', 'Chamado da fluência', 'Ritual do inglês', 'Quest ativa', 'Turbo ligado',
-      'Mini sprint', 'Pomodoro pronto', 'Start now', 'Let’s go', 'Go time', 'Time to learn', 'Vibe de estudo', 'Foco on'
-    ],
-    middles: [
-      '{act} começou agora', '{act} te chama', 'Primeiro passo: {act}', 'Ponte aérea rumo à fluência: {act}',
-      'Só começar com {act}', '{act}: 1% melhor hoje', 'Anti-procrastinação: {act}',
-      'Tiny habit do dia: {act}', 'XP em curso: {act}', 'Combo perfeito: respira e {act}',
-      'Modo treino: {act}', 'Ritmo constante com {act}', 'Sem pressa, com {act}', '{act} para aquecer',
-      'Checklist te esperando: {act}', 'Streak sorri com {act}', 'Seu eu do futuro ama {act}',
-      '5 min viram 25 com {act}', 'Só dar play em {act}', 'Comece suave: {act}'
-    ],
-    outros: [
-      'Bora?', 'Partiu?', 'Play!', 'Valendo!', 'Vai uma rodada?', 'Tô contigo!', 'Fé no processo.',
-      'Seu progresso agradece.', 'Constância vence.', 'Você consegue!', 'Foco e vapo.', 'Só vem!',
-      'Um passo por vez.', 'Agora é a hora.', 'Let’s do it!', 'Keep going!', 'Bora brilhar!', 'Rumo ao OK!',
-      'Curto e direto.', 'Microvitória agora.'
-    ]
-  };
-  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-  function buildFunnyNotificationBody(item, includeTime=false){
-    const act = `${item.emoji} ${item.name}`;
-    const intro = pick(NOTIF_PARTS.intros);
-    const midT = pick(NOTIF_PARTS.middles).replace('{act}', act);
-    const outro = pick(NOTIF_PARTS.outros);
-    const time = includeTime ? ` (${(item.time.split('–')[0]||'').trim()})` : '';
-    return `${intro}! ${midT}${time}. ${outro}`;
+  // ===== Mensagens fixas por atividade =====
+  function buildFixedNotificationBody(item, includeTime=false){
+    const base = item.message || `${item.emoji} ${item.name}`;
+    if(includeTime){
+      const timePart = (item.time.split('–')[0] || item.time.split('-')[0] || '').trim();
+      return `${base} (${timePart})`;
+    }
+    return base;
   }
   function scheduleLocalNotificationsForToday(){
     _clearLocalNotificationTimers();
@@ -605,8 +583,9 @@
       if(!parsed) continue;
       const when = _whenToday(parsed.h, parsed.m);
       const delay = when.getTime() - now.getTime();
-      if(delay > 500){
-        const id = setTimeout(()=>{ _showActivityNotification(item); }, delay);
+      // agenda exatamente no horário; tolera até 1s de atraso (executa imediato)
+      if(delay > -1000){
+        const id = setTimeout(()=>{ _showActivityNotification(item); }, Math.max(0, delay));
         _notifTimers.push(id);
       }
       // se já passou hoje, não agenda; o rollover da meia-noite cuidará do próximo dia
