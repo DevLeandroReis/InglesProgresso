@@ -113,11 +113,13 @@
       await persistAndRender();
     });
 
-    $btnReset.addEventListener('click', ()=>{
+  $btnReset.addEventListener('click', ()=>{
       if(confirm('Tem certeza que deseja limpar todas as marcações?')){
         state.progress = {};
         for(const item of SCHEDULE){ state.progress[item.key] = []; }
-  persistAndRender();
+    state.achievements = { perfectDays: 0, claimed: 0 };
+    state.lastCelebrateDay = '';
+    persistAndRender();
       }
     });
   }
@@ -188,17 +190,42 @@
     qsa('.mark-today', $scheduleTable).forEach(btn=>{
       btn.addEventListener('click', async (e)=>{
         const key = e.currentTarget.getAttribute('data-key');
-        const iso = toISODate(new Date());
-        toggleProgress(key, iso);
+        const todayISO = toISODate(new Date());
+        // snapshot antes
+        const prevSet = computePerfectDaysSet();
+        const prevCount = prevSet.size;
+        const prevUnlocked = Math.floor(prevCount/7);
+        const wasTodayPerfect = prevSet.has(todayISO);
+
+        // toggle
+        toggleProgress(key, todayISO);
+
         // atualiza label do botão
-        const isNowDone = state.progress[key].includes(iso);
+        const isNowDone = state.progress[key].includes(todayISO);
         e.currentTarget.textContent = isNowDone ? 'Feito hoje' : 'Marcar hoje';
         e.currentTarget.classList.toggle('done-today', isNowDone);
+
+        // recálculo após toggle
+        const newSet = computePerfectDaysSet();
+        const newCount = newSet.size;
+        const newUnlocked = Math.floor(newCount/7);
+        const isTodayPerfect = newSet.has(todayISO);
+        state.achievements.perfectDays = newCount;
+
         await persist();
-        // atualiza grids e metas
+        // atualiza gráficos e conquistas
         renderActivities();
-  // se todas concluídas hoje após esta ação, comemora
-  celebrateIfAllDone();
+        renderAchievements();
+
+        // animações: conquista em múltiplos de 7, senão vitória simples ao virar perfeito hoje
+        if(newUnlocked > prevUnlocked){
+          const newlyIndex = newUnlocked - 1;
+          triggerAchievementAnimation(newlyIndex);
+          const target = document.querySelector('.achievements-card') || document.getElementById('achievements');
+          if(target){ try{ target.scrollIntoView({ behavior:'smooth', block:'start' }); }catch{} }
+        } else if(isTodayPerfect && !wasTodayPerfect){
+          triggerVictoryAnimation();
+        }
       });
     });
   }
@@ -313,21 +340,10 @@
   function celebrateIfAllDone(){
     const todayISO = toISODate(new Date());
     if(isAllDoneToday() && state.lastCelebrateDay !== todayISO){
-      const perfectBefore = state.achievements?.perfectDays || 0;
-      const unlockedBefore = Math.floor(perfectBefore / 7);
-      state.lastCelebrateDay = todayISO;
-      writeStateToStorage(state);
-      const unlockedAfter = addPerfectDayAndMaybeUnlock();
-      // Se alcançou um novo múltiplo de 7, mostra animação de conquista e ancora na seção
-      if(unlockedAfter > unlockedBefore){
-        const newlyIndex = unlockedAfter - 1; // índice recém-desbloqueado
-        triggerAchievementAnimation(newlyIndex);
-        const target = document.querySelector('.achievements-card') || document.getElementById('achievements');
-        if(target){ try{ target.scrollIntoView({ behavior:'smooth', block:'start' }); }catch{} }
-      }else{
-        // caso contrário, mantém a animação tradicional de vitória
-        triggerVictoryAnimation();
-      }
+  // Mantido para compatibilidade, mas a nova lógica de animação está no handler de clique.
+  state.lastCelebrateDay = todayISO;
+  writeStateToStorage(state);
+  triggerVictoryAnimation();
     }
   }
 
@@ -350,13 +366,17 @@
   }
 
   // ===== Conquistas (7 dias perfeitos) =====
-  function addPerfectDayAndMaybeUnlock(){
-    state.achievements.perfectDays += 1;
-    const unlocked = Math.floor(state.achievements.perfectDays / 7);
-    // não incrementa claimed automaticamente; claimed representa quantas já foram mostradas/resgatadas
-    writeStateToStorage(state);
-    renderAchievements();
-    return unlocked;
+  function computePerfectDaysSet(){
+    // interseção de todas as datas concluídas entre as atividades
+    const keys = SCHEDULE.map(s=> s.key);
+    if(keys.length === 0) return new Set();
+    let inter = new Set(state.progress[keys[0]] || []);
+    for(let i=1;i<keys.length;i++){
+      const setI = new Set(state.progress[keys[i]] || []);
+      inter = new Set([...inter].filter(d => setI.has(d)));
+      if(inter.size === 0) break;
+    }
+    return inter;
   }
   const FUN_PRIZES = [
     { emoji:'🏆', name:'Cálice da Fluência', desc:'Você ganhou um cálice dourado que melhora sua pronúncia por 0.0001%.' },
