@@ -24,9 +24,14 @@
   const $notifPrompt = qs('#notifPrompt');
   const $btnNotifPrompt = qs('#btnNotifPrompt');
   const $achievements = qs('#achievements');
+  const $btnSelectFolder = qs('#btnSelectFolder');
+  const $btnExport = qs('#btnExport');
+  const $btnImport = qs('#btnImport');
+  const $fileImport = qs('#fileImport');
   // sem botões adicionais
 
   const STORAGE_KEY = 'ingles-progresso:v2';
+  let dirHandle = null; // Handle para pasta selecionada para backup automático
 
   function storageAvailable(){
     try{
@@ -122,6 +127,58 @@
     persistAndRender();
       }
     });
+
+    // Backup/Export/Import handlers
+    if($btnSelectFolder){
+      $btnSelectFolder.addEventListener('click', async ()=>{
+        try{
+          await selectDirectory();
+          await initializeFromFile();
+        }catch(e){
+          console.warn(e);
+        }
+      });
+    }
+
+    if($btnExport){
+      $btnExport.addEventListener('click', ()=>{
+        const dataStr = JSON.stringify(state, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ingles-progresso-${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    if($btnImport){
+      $btnImport.addEventListener('click', ()=>{
+        $fileImport.click();
+      });
+    }
+
+    if($fileImport){
+      $fileImport.addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const imported = JSON.parse(text);
+          if(confirm('Isso substituirá todo o progresso atual. Continuar?')){
+            state = ensureStructure(imported);
+            await persistAndRender();
+            alert('Progresso importado com sucesso!');
+          }
+        }catch(err){
+          alert('Erro ao importar arquivo: ' + err.message);
+        }
+        e.target.value = ''; // reset input
+      });
+    }
   }
 
   // Utilidades de datas
@@ -435,6 +492,31 @@
       throw err;
     }
   }
+  
+  async function loadStateFromFile(){
+    if(!dirHandle) return null;
+    try{
+      const fileHandle = await dirHandle.getFileHandle('ingles-progresso.json', { create: false });
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      return JSON.parse(text);
+    }catch(err){
+      console.warn('Erro ao carregar arquivo:', err);
+      return null;
+    }
+  }
+  
+  async function writeStateToFile(state){
+    if(!dirHandle) return;
+    try{
+      const fileHandle = await dirHandle.getFileHandle('ingles-progresso.json', { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(state, null, 2));
+      await writable.close();
+    }catch(err){
+      console.warn('Erro ao salvar arquivo:', err);
+    }
+  }
   async function initializeFromFile(){
     const loaded = await loadStateFromFile();
     if(loaded){
@@ -450,7 +532,11 @@
     }
   }
   async function persist(){
-  writeStateToStorage(state);
+    writeStateToStorage(state);
+    // Se houver diretório selecionado, também salva no arquivo
+    if(dirHandle){
+      await writeStateToFile(state);
+    }
   }
   async function persistAndRender(){
     await persist();
@@ -655,18 +741,19 @@
     $btnSubscribePush.addEventListener('click', async ()=>{
       // IMPORTANTE: Para receber notificações com o navegador fechado, configure um backend de Web Push
       // e coloque aqui sua chave pública VAPID.
-      const VAPID_PUBLIC = 'COLOQUE_SUA_CHAVE_PUBLICA_VAPID_AQUI';
-      if(VAPID_PUBLIC.startsWith('COLOQUE_')){
-        alert('Para Push em background, configure um backend (Web Push) e defina a chave VAPID.');
-        return;
-      }
+      const VAPID_PUBLIC = 'BGNdJDGUIZIoJ8xk16xv6kXRc7k7j9cKr1-E-LMj7s5KLwW6bk8rX5YKf5F1Xm2VqJN9Ys8nHgj7TfUHOqvYnDQ';
+      
       const ok = await ensureNotificationPermission();
       if(!ok) return;
+      
       try{
         const sub = await subscribePush(VAPID_PUBLIC);
         console.log('Push subscription:', JSON.stringify(sub));
-        alert('Assinatura criada. Envie essa subscription ao seu backend.');
-      }catch(e){ console.warn(e); alert('Falha ao assinar Push.'); }
+        alert('Assinatura de push criada com sucesso! Para receber notificações com o navegador fechado, um backend precisa ser configurado.');
+      }catch(e){ 
+        console.warn(e); 
+        alert('Falha ao assinar Push: ' + e.message); 
+      }
     });
   }
   // Verifica permissão ao abrir e mostra prompt se necessário
